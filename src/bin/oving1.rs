@@ -120,7 +120,6 @@ mod dcode_tests{
     #[test]
     #[should_panic]
     fn test_error_max_range(){
-        let expected_result: Vec<usize> = [2,3,5,7].to_vec();
-        assert_eq!(expected_result, super::calculate_primes(4, 2, 2));
+        super::calculate_primes(4, 2, 2);
     }
 }
