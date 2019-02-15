@@ -11,24 +11,17 @@ lazy_static! {
     static ref PRIMES:Mutex<Vec<Vec<usize>>> = Mutex::new(Vec::new());
 }
 fn main() {
-    let min_range: usize = get_input_from_user(String::from("min range"));
-    let max_range: usize = get_input_from_user(String::from("max range"));
-    if min_range>max_range{
-        println!("ERROR! min range must be higher than max range!");
-        process::exit(0x0100);
-    }
+    let min_range: usize = get_input_from_user(String::from("min range  "));
+    let max_range: usize = get_input_from_user(String::from("max range  "));
     let ant_threads: usize = get_input_from_user(String::from("ant threads"));
-    if ant_threads> (max_range-min_range) || ant_threads < 1 {
-        println!("ERROR! Invalid ant threads range!");
-        process::exit(0x0100);
-    }
     let now = Instant::now();
-    println!("The primes between {} and {}, are:\n{:?}\nTime used: {:?}",min_range, max_range, calculate_primes(min_range, max_range, ant_threads),now.elapsed());
+    println!("The primes between {} and {}, are:\n{:?}\nTime used: {:?}",min_range, max_range, 
+    calculate_primes(min_range, max_range, ant_threads),now.elapsed());
 }
 
 fn calculate_primes(min_range: usize, max_range: usize, ant_threads: usize)->Vec<usize>{
-    if min_range>max_range{
-        panic!("shieet!")
+    if min_range >= max_range || ant_threads < 1 || min_range < 2 {
+        panic!("ERROR! Invalid variables!");
     }
     let sum: usize = max_range - min_range;
     let ant_work_pr_threads: usize = sum / ant_threads;
@@ -39,7 +32,6 @@ fn calculate_primes(min_range: usize, max_range: usize, ant_threads: usize)->Vec
     thread_work_range.push(min_range);
     let mut temp_value: usize = min_range + last_work_thread;
     thread_work_range.push(temp_value);
-    println!("last_work_thread: {}, ant_work_pr_threads: {}, temp_value: {}",last_work_thread,ant_work_pr_threads, temp_value);
     for _i in 1..ant_threads {
         thread_work_range.push(temp_value);
         temp_value += ant_work_pr_threads;
@@ -50,7 +42,6 @@ fn calculate_primes(min_range: usize, max_range: usize, ant_threads: usize)->Vec
     for i in (0..thread_work_range_size).step_by(2) {
         let start = thread_work_range[i].clone();
         let end = thread_work_range[i+1].clone();
-        println!("start: {}, end: {}, index: {}",start,end, index);
         threads.push(thread::spawn(move || {get_primes_between_interval(index, start, end)}));
         index += 1;
     }
@@ -58,7 +49,6 @@ fn calculate_primes(min_range: usize, max_range: usize, ant_threads: usize)->Vec
         let _ = thread.join();
     }
     let prime_list_threads =PRIMES.lock().unwrap();
-
     let mut prime_list: Vec<usize> = Vec::new();
 
     for x in prime_list_threads.iter() {
@@ -103,7 +93,7 @@ mod dcode_tests{
     #[test]
     fn test_1(){
         let expected_result: Vec<usize> = [2,3,5,7].to_vec();
-        assert_eq!(expected_result, super::calculate_primes(2, 10, 2));
+        assert_eq!(expected_result, super::calculate_primes(2, 10, 100));
     }
     #[test]
     fn test_2(){
@@ -120,7 +110,12 @@ mod dcode_tests{
     #[test]
     #[should_panic]
     fn test_error_max_range(){
-        let expected_result: Vec<usize> = [2,3,5,7].to_vec();
-        assert_eq!(expected_result, super::calculate_primes(4, 2, 2));
+        super::calculate_primes(4, 2, 2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_error_0_threads(){
+        super::calculate_primes(4, 2, 0);
     }
 }
