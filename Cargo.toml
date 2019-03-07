@@ -1,5 +1,5 @@
 [package]
-name = "Nettverksprogrammering"
+name = "nettverksprogrammering"
 version = "0.1.0"
 authors = ["Snorre Strand <snorrestrand@hotmail.com>"]
 edition = "2018"
