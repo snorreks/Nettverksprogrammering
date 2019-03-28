@@ -30,7 +30,6 @@ fn send_response(mut stream: TcpStream, request: String) {
     let mut response = String::from("HTTP/1.0 200 OK\nContent-Type: text/html\n\n<html><body><H1> Hilsen. Du har koblet deg opp til min enkle web-tjener </h1>Header fra klient er:<ul>");
     response.push_str(&request);
     response.push_str("</ul></body></html>");
-    println!("{}", response);
     stream
         .write_all(response.as_bytes())
         .expect("Could not send data");

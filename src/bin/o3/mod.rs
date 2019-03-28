@@ -13,19 +13,30 @@ pub fn run_server() {
                 match stream {
                         Ok(stream) => {
                                 thread::spawn(move || {
-                                        // connection succeeded
                                         server_handle_client(stream)
                                                 .unwrap_or_else(|error| eprintln!("{:?}", error));
                                 });
                         }
                         Err(e) => {
                                 eprintln!("Error: {}", e);
-                                /* connection failed */
                         }
                 }
         }
-        // close the socket server
         drop(listener);
+}
+
+fn server_handle_client(mut stream: TcpStream) -> Result<(), Error> {
+        println!("New connection: {}", stream.peer_addr()?);
+        let mut buf = [0; 512]; // using 512 byte buffer
+        loop {
+                let bytes_read = stream.read(&mut buf)?;
+                if bytes_read == 0 {
+                        return Ok(());
+                }
+                let message = from_utf8(&buf).unwrap().to_string();
+                let v: Vec<&str> = message.split('|').collect();
+                stream.write(calculate_operation(v[0], v[1], v[2]).as_bytes())?;
+        }
 }
 
 pub fn run_client() {
@@ -34,12 +45,12 @@ pub fn run_client() {
         loop {
                 let mut message = String::new();
                 let mut buffer: Vec<u8> = Vec::new();
-                message.push_str(&get_input_from_user(String::from("Enter the first number")));
-                message.push('.');
-                message.push_str(&get_input_from_user(String::from("Enter the other number")));
-                message.push('.');
+                message.push_str(&get_input_from_user(String::from("first number")));
+                message.push('|');
+                message.push_str(&get_input_from_user(String::from("other number")));
+                message.push('|');
                 message.push(get_operation_from_user());
-                message.push('.');
+                message.push('|');
                 stream.write(message.as_bytes())
                         .expect("Failed to write to server");
                 let mut reader = BufReader::new(&stream);
@@ -52,20 +63,6 @@ pub fn run_client() {
         }
 }
 
-fn server_handle_client(mut stream: TcpStream) -> Result<(), Error> {
-        println!("New connection: {}", stream.peer_addr()?);
-        let mut buf = [0; 512]; // using 512 byte buffer
-        loop {
-                let bytes_read = stream.read(&mut buf)?;
-                if bytes_read == 0 {
-                        return Ok(());
-                }
-                let message = from_utf8(&buf).unwrap().to_string();
-                let v: Vec<&str> = message.split('.').collect();
-                stream.write(calculate_operation(v[0], v[1], v[2]).as_bytes())?;
-        }
-}
-
 fn get_input_from_user(name: String) -> String {
         let mut value_input = String::new();
         print!("Enter the {} >> ", name);
@@ -74,7 +71,7 @@ fn get_input_from_user(name: String) -> String {
                 .read_line(&mut value_input)
                 .expect("Error reading from STDIN");
         let trimmed_value = value_input.trim();
-        match trimmed_value.parse::<usize>() {
+        match trimmed_value.parse::<isize>() {
                 Ok(i) => return i.to_string(),
                 Err(..) => {
                         println!("Error {} is not a valid input", trimmed_value);
@@ -85,7 +82,7 @@ fn get_input_from_user(name: String) -> String {
 
 fn get_operation_from_user() -> char {
         let mut value_input = String::new();
-        print!("Enter + or -                     >> ");
+        print!("Enter + or -           >> ");
         io::stdout().flush().expect("could not flush");
         io::stdin()
                 .read_line(&mut value_input)
@@ -101,8 +98,8 @@ fn get_operation_from_user() -> char {
 }
 
 fn calculate_operation(input_a: &str, input_b: &str, operation: &str) -> String {
-        let a = input_a.parse::<usize>().unwrap();
-        let b = input_b.parse::<usize>().unwrap();
+        let a = input_a.parse::<isize>().unwrap();
+        let b = input_b.parse::<isize>().unwrap();
         let mut answer = String::from("* The answer is ");
         if operation == "+" {
                 answer.push_str(&(a + b).to_string());
