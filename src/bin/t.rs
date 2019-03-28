@@ -18,11 +18,11 @@ fn main() {
 
     let pool = my::Pool::new("mysql://snorreks:yJct1XSh@mysql.stud.iie.ntnu.no/snorreks").unwrap();
 
-    pool.prep_exec(r"DROP TABLE IF EXISTS bank", ()).unwrap();
-
+    // Let's create payment table.
+    // Unwrap just to make sure no error happened.
     pool.prep_exec(
-        r"
-        CREATE TABLE bank (
+        r"DROP TABLE payment;
+        CREATE TABLE payment (
                          kontonummer int not null,
                          saldo int not null,
                          eier text
@@ -64,7 +64,7 @@ fn main() {
     // Also we assume that no error happened in `prepare`.
     for mut stmt in pool
         .prepare(
-            r"INSERT INTO bank
+            r"INSERT INTO payment
                                        (kontonummer, saldo, eier)
                                    VALUES
                                        (:kontonummer, :saldo, :eier)",
@@ -85,7 +85,7 @@ fn main() {
 
     // Let's select payments from database
     let selected_payments: Vec<Payment> = pool
-        .prep_exec("SELECT kontonummer, saldo, eier from bank", ())
+        .prep_exec("SELECT kontonummer, saldo, eier from payment", ())
         .map(|result| {
             // In this closure we will map `QueryResult` to `Vec<Payment>`
             // `QueryResult` is iterator over `MyResult<row, err>` so first call to `map`

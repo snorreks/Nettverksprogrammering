@@ -1,0 +1,2 @@
+DROP DATABASE snorreks;
+CREATE DATABASE snorreks;
