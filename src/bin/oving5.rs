@@ -1,102 +1,127 @@
-#[macro_use]
-extern crate mysql;
 // cargo install diesel_cli --no-default-features --features mysql
 //https://cdn.mysql.com/archives/mysql-connector-c/mysql-connector-c-6.1.11-winx64.msi
+//host: mysql.stud.iie.ntnu.no
+//user: snorreks
+//password: yJct1XSh
+#[macro_use]
+extern crate mysql;
 use mysql as my;
 
 #[derive(Debug, PartialEq, Eq)]
-struct Payment {
+struct BankUser {
     kontonummer: i32,
     saldo: i32,
     eier: String,
 }
 
-fn main() {
-    //host: mysql.stud.iie.ntnu.no
-    //user: snorreks
-    //password: yJct1XSh
+impl BankUser {
+    fn eier(&self) -> &String {
+        &self.eier
+    }
+    fn kontonummer(&self) -> &i32 {
+        &self.kontonummer
+    }
+    fn saldo(&self) -> &i32 {
+        &self.saldo
+    }
 
+    fn set_eier(&mut self, eier: String, pool: &my::Pool) {
+        self.eier = eier;
+        let mut stmt = pool
+            .prepare(r"UPDATE bank_user SET eier = :eier WHERE kontonummer = :kontonummer")
+            .unwrap();
+        stmt.execute(params! {
+            "kontonummer" => self.kontonummer,
+            "eier" => self.eier(),
+        })
+        .unwrap();
+    }
+
+    fn set_saldo(&mut self, saldo: i32, pool: &my::Pool) {
+        self.saldo = saldo;
+        let mut stmt = pool
+            .prepare(r"UPDATE bank_user SET saldo = :saldo WHERE kontonummer = :kontonummer")
+            .unwrap();
+        stmt.execute(params! {
+            "kontonummer" => self.kontonummer,
+            "saldo" => self.saldo(),
+        })
+        .unwrap();
+    }
+
+    fn trekk(&mut self, antall: i32, pool: &my::Pool) {
+        self.saldo = self.saldo - antall;
+        let mut stmt = pool
+            .prepare(r"UPDATE bank_user SET saldo = :saldo WHERE kontonummer = :kontonummer")
+            .unwrap();
+        stmt.execute(params! {
+            "kontonummer" => self.kontonummer,
+            "saldo" => self.saldo(),
+        })
+        .unwrap();
+    }
+}
+
+fn main() {
     let pool = my::Pool::new("mysql://snorreks:yJct1XSh@mysql.stud.iie.ntnu.no/snorreks").unwrap();
 
-    pool.prep_exec(r"DROP TABLE IF EXISTS bank", ()).unwrap();
-
-    pool.prep_exec(
-        r"
-        CREATE TABLE bank (
-                         kontonummer int not null,
-                         saldo int not null,
-                         eier text
-                     );",
-        (),
-    )
-    .unwrap();
-
-    let payments = vec![
-        Payment {
+    let mut bank_users = vec![
+        BankUser {
             kontonummer: 1,
-            saldo: 2,
+            saldo: 200,
             eier: String::from("Per"),
         },
-        Payment {
+        BankUser {
             kontonummer: 2,
-            saldo: 4,
+            saldo: 400,
             eier: String::from("Bob"),
         },
-        Payment {
+        BankUser {
             kontonummer: 3,
-            saldo: 6,
+            saldo: 600,
             eier: String::from("Karl"),
         },
-        Payment {
+        BankUser {
             kontonummer: 4,
-            saldo: 8,
+            saldo: 20,
             eier: String::from("Martin"),
         },
-        Payment {
+        BankUser {
             kontonummer: 5,
-            saldo: 10,
+            saldo: 1000,
             eier: String::from("Sander"),
         },
     ];
 
-    // Let's insert payments to the database
-    // We will use into_iter() because we do not need to map Stmt to anything else.
-    // Also we assume that no error happened in `prepare`.
+    // Setter inn i databasen:
     for mut stmt in pool
         .prepare(
-            r"INSERT INTO bank
-                                       (kontonummer, saldo, eier)
-                                   VALUES
-                                       (:kontonummer, :saldo, :eier)",
+            r"INSERT INTO bank_user (kontonummer, saldo, eier) VALUES (:kontonummer, :saldo, :eier)",
         )
         .into_iter()
     {
-        for p in payments.iter() {
-            // `execute` takes ownership of `params` so we pass account name by reference.
-            // Unwrap each result just to make sure no errors happened.
+        for p in bank_users.iter() {
             stmt.execute(params! {
-                "kontonummer" => p.kontonummer,
-                "saldo" => p.saldo,
-                "eier" => &p.eier,
+                "kontonummer" => p.kontonummer(),
+                "saldo" => p.saldo(),
+                "eier" => p.eier(),
             })
-            .unwrap();
+            .unwrap(); //unwrap for error sjekking
         }
     }
 
-    // Let's select payments from database
-    let selected_payments: Vec<Payment> = pool
-        .prep_exec("SELECT kontonummer, saldo, eier from bank", ())
+    // Get all bank_users with saldo > 300
+    let selected_users: Vec<BankUser> = pool
+        .prep_exec(
+            "SELECT kontonummer, saldo, eier from bank_user WHERE saldo > 300",
+            (),
+        )
         .map(|result| {
-            // In this closure we will map `QueryResult` to `Vec<Payment>`
-            // `QueryResult` is iterator over `MyResult<row, err>` so first call to `map`
-            // will map each `MyResult` to contained `row` (no proper error handling)
-            // and second call to `map` will map each `row` to `Payment`
             result
                 .map(|x| x.unwrap())
                 .map(|row| {
-                    // ⚠️ Note that from_row will panic if you don't follow your schema
                     let (kontonummer, saldo, eier) = my::from_row(row);
-                    Payment {
+                    BankUser {
                         kontonummer: kontonummer,
                         saldo: saldo,
                         eier: eier,
@@ -105,10 +130,33 @@ fn main() {
                 .collect() // Collect payments so now `QueryResult` is mapped to `Vec<Payment>`
         })
         .unwrap(); // Unwrap `Vec<Payment>`
+    println!("Users with saldo >300:\n{:?}", selected_users);
 
-    // Now make sure that `payments` equals to `selected_payments`.
-    // Mysql gives no guaranties on order of returned rows without `ORDER BY`
-    // so assume we are lukky.
-    assert_eq!(payments, selected_payments);
-    println!("Yay!");
+    let user = &mut bank_users[0];
+    user.set_eier(String::from("Sander"), &pool);
+
+    // Get all bank_users with saldo > 300
+    let selected_user: Vec<BankUser> = pool
+        .prep_exec(
+            "SELECT kontonummer, saldo, eier from bank_user WHERE kontonummer = 1",
+            (),
+        )
+        .map(|result| {
+            result
+                .map(|x| x.unwrap())
+                .map(|row| {
+                    let (kontonummer, saldo, eier) = my::from_row(row);
+                    BankUser {
+                        kontonummer: kontonummer,
+                        saldo: saldo,
+                        eier: eier,
+                    }
+                })
+                .collect() // Collect payments so now `QueryResult` is mapped to `Vec<Payment>`
+        })
+        .unwrap(); //
+    println!(
+        "The first user's name is now: {:?}",
+        selected_user[0].eier()
+    );
 }
