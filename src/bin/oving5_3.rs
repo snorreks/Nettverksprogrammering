@@ -44,7 +44,7 @@ fn main() {
     user1.trekk(40, &pool);
         let user2 = &mut init_users[1];
 
-thread::sleep(time::Duration::from_millis(10));
+thread::sleep(time::Duration::from_millis(800));
 
     user2.set_saldo(user2.saldo() + 40,&pool);
 

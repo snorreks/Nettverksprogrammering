@@ -1,9 +1,16 @@
-use std::{thread, time};
 #[macro_use]
 extern crate mysql;
 use mysql as my;
 
 mod o5;
+
+/*
+fn do_transaction(user1: &o5::BankUser, user2 &o5::BankUser, antall: i32, pool: &my::Pool) ->Result<f64,MyError> {
+
+    Ok();
+
+}
+*/
 
 fn main() {
     let pool = my::Pool::new("mysql://snorreks:yJct1XSh@mysql.stud.iie.ntnu.no/snorreks").unwrap();
@@ -38,24 +45,19 @@ fn main() {
         init_users[1].saldo()
     );
 
-
-   // let mut transaction = my::Transaction.query(query: T);
-    
-{
+    setup_transaction(&pool);
+    set_auto_commit(false);
         let user1 = &mut init_users[0];
-        user1.trekk(40, &pool);
+        let res1 = user1.trekk(40, &pool).unwrap();
         let user2 = &mut init_users[1];
+        let res2 = user2.set_saldo(user2.saldo() + 40, &pool).unwrap();
 
-        thread::sleep(time::Duration::from_millis(10));
-        user2.set_saldo(user2.saldo() + 40,&pool);
-}
-    
-
-
-
-
-
-
+        if res1 == 1 || res2  == 1 {
+            commit();
+        } else {
+            rollback();
+        }
+    set_auto_commit(true);
 
 
     // Get users again
@@ -87,4 +89,52 @@ fn main() {
         "User 2 updated saldo: {}",
         updated_users[1].saldo()
     );
+}
+
+/* 
+    pub fn set_saldo(&mut self, saldo: i32, pool: &my::Pool) {
+        self.saldo = saldo;
+        let mut stmt = pool
+            .prepare(r"UPDATE bank_user SET saldo = :saldo WHERE kontonummer = :kontonummer")
+            .unwrap();
+        stmt.execute(params! {
+            "kontonummer" => self.kontonummer,
+            "saldo" => self.saldo(),
+        })
+        .unwrap();
+    }
+
+    pub fn trekk(&mut self, antall: i32, pool: &my::Pool) {
+        self.saldo = self.saldo - antall;
+        let mut stmt = pool
+            .prepare(r"UPDATE bank_user SET saldo = :saldo WHERE kontonummer = :kontonummer")
+            .unwrap();
+        stmt.execute(params! {
+            "kontonummer" => self.kontonummer,
+            "saldo" => self.saldo(),
+        })
+        .unwrap();
+    }
+
+*/
+
+
+
+
+
+
+
+fn set_auto_commit(bol: bool) {
+
+}
+fn setup_transaction(pool: &my::Pool){
+
+}
+
+fn rollback() {
+    print!("rollbacked")
+}
+
+fn commit() {
+    println!("commited");
 }

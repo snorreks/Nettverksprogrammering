@@ -1,5 +1,5 @@
 use mysql as my;
-
+use mysql::Error;
 #[derive(Debug, PartialEq, Eq)]
 pub struct BankUser {
     pub kontonummer: i32,
@@ -30,7 +30,7 @@ impl BankUser {
         .unwrap();
     }
 
-    pub fn set_saldo(&mut self, saldo: i32, pool: &my::Pool) {
+    pub fn set_saldo(&mut self, saldo: i32, pool: &my::Pool) -> Result<i32,Error> {
         self.saldo = saldo;
         let mut stmt = pool
             .prepare(r"UPDATE bank_user SET saldo = :saldo WHERE kontonummer = :kontonummer")
@@ -40,9 +40,10 @@ impl BankUser {
             "saldo" => self.saldo(),
         })
         .unwrap();
+        Ok(1)
     }
 
-    pub fn trekk(&mut self, antall: i32, pool: &my::Pool) {
+    pub fn trekk(&mut self, antall: i32, pool: &my::Pool) -> Result<i32,Error> {
         self.saldo = self.saldo - antall;
         let mut stmt = pool
             .prepare(r"UPDATE bank_user SET saldo = :saldo WHERE kontonummer = :kontonummer")
@@ -52,5 +53,6 @@ impl BankUser {
             "saldo" => self.saldo(),
         })
         .unwrap();
+        Ok(1)
     }
 }

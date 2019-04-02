@@ -35,12 +35,12 @@ fn main() {
     println!("Users with saldo >300:\n{:?}", selected_users);
 
     let user = &mut selected_users[0];
-    user.set_eier(String::from("Sander"), &pool);
+    user.set_eier(String::from("NYTT_NAVN_TEST"), &pool);
 
     // Get all bank_users with saldo > 300
     let selected_user: Vec<o5::BankUser> = pool
         .prep_exec(
-            "SELECT kontonummer, saldo, eier from bank_user WHERE kontonummer = 1",
+            "SELECT kontonummer, saldo, eier from bank_user WHERE kontonummer = 2",
             (),
         )
         .map(|result| {
